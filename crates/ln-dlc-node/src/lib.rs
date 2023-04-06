@@ -26,6 +26,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use time::OffsetDateTime;
 
+mod await_with_timeout;
 mod disk;
 mod dlc_custom_signer;
 mod ln;
