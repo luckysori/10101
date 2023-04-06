@@ -1,3 +1,4 @@
+use crate::await_with_timeout::AwaitWithTimeout;
 use crate::node::Node;
 use anyhow::anyhow;
 use anyhow::Result;
@@ -34,7 +35,9 @@ impl Node {
                     .map_err(|e| anyhow!(e.to_string()))
             }
         })
-        .await??;
+        .await_with_timeout()
+        .await
+        .unwrap()??;
 
         let sub_channel_offer = self
             .sub_channel_manager

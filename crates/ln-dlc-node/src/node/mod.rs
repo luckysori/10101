@@ -1,3 +1,4 @@
+use crate::await_with_timeout::AwaitWithTimeout;
 use crate::disk;
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::ln::app_config;
@@ -335,7 +336,7 @@ impl Node {
             payment::Retry::Timeout(Duration::from_secs(10)),
         ));
 
-        let oracle_client = oracle_client::build().await?;
+        let oracle_client = oracle_client::build().await_with_timeout().await.unwrap()?;
         let oracle_client = Arc::new(oracle_client);
 
         let dlc_manager = dlc_manager::build(
@@ -356,7 +357,9 @@ impl Node {
                 let mut connection_handles = Vec::new();
 
                 let listener = tokio::net::TcpListener::bind(listen_address)
+                    .await_with_timeout()
                     .await
+                    .unwrap()
                     .expect("Failed to bind to listen port");
                 loop {
                     let peer_manager = peer_manager.clone();
@@ -369,7 +372,9 @@ impl Node {
                             peer_manager.clone(),
                             tcp_stream.into_std().unwrap(),
                         )
-                        .await;
+                        .await_with_timeout()
+                        .await
+                        .unwrap();
                     }
                     .remote_handle();
 

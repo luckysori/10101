@@ -1,3 +1,4 @@
+use crate::await_with_timeout::AwaitWithTimeout;
 use crate::node::Node;
 use crate::tests::init_tracing;
 use crate::tests::min_outbound_liquidity_channel_creator;
@@ -10,14 +11,41 @@ async fn multi_hop_payment() {
 
     // Arrange
 
-    let payer = Node::start_test_app("payer").await.unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
-    let payee = Node::start_test_app("payee").await.unwrap();
+    let payer = Node::start_test_app("payer")
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator")
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
+    let payee = Node::start_test_app("payee")
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
-    payer.connect(coordinator.info).await.unwrap();
-    payee.connect(coordinator.info).await.unwrap();
+    payer
+        .connect(coordinator.info)
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
+    payee
+        .connect(coordinator.info)
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
-    coordinator.fund(Amount::from_sat(50_000)).await.unwrap();
+    coordinator
+        .fund(Amount::from_sat(50_000))
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
     let payer_outbound_liquidity_sat = 20_000;
     let coordinator_outbound_liquidity_sat =
@@ -28,10 +56,17 @@ async fn multi_hop_payment() {
             coordinator_outbound_liquidity_sat,
             payer_outbound_liquidity_sat,
         )
+        .await_with_timeout()
         .await
+        .unwrap()
         .unwrap();
 
-    coordinator.open_channel(&payee, 20_000, 0).await.unwrap();
+    coordinator
+        .open_channel(&payee, 20_000, 0)
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
     let payer_balance_before = payer.get_ldk_balance();
     let coordinator_balance_before = coordinator.get_ldk_balance();
@@ -50,7 +85,9 @@ async fn multi_hop_payment() {
 
     payee
         .wait_for_payment_claimed(invoice.payment_hash())
+        .await_with_timeout()
         .await
+        .unwrap()
         .unwrap();
 
     // Assert

@@ -1,3 +1,4 @@
+use crate::await_with_timeout::AwaitWithTimeout;
 use crate::node::Node;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
@@ -15,19 +16,35 @@ async fn reconnecting_during_dlc_channel_setup_leads_to_ln_channel_closure() {
 
     // Arrange
 
-    let app = Node::start_test_app("app").await.unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
+    let app = Node::start_test_app("app")
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator")
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
-    app.connect(coordinator.info).await.unwrap();
+    app.connect(coordinator.info)
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
     coordinator
         .fund(Amount::from_sat(10_000_000))
+        .await_with_timeout()
         .await
+        .unwrap()
         .unwrap();
 
     coordinator
         .open_channel(&app, 50_000, 50_000)
+        .await_with_timeout()
         .await
+        .unwrap()
         .unwrap();
     let channel_details = app.channel_manager.list_usable_channels();
     let channel_details = channel_details
@@ -42,13 +59,22 @@ async fn reconnecting_during_dlc_channel_setup_leads_to_ln_channel_closure() {
     let contract_input = dummy_contract_input(20_000, 20_000, oracle_pk);
 
     app.propose_dlc_channel(channel_details, &contract_input)
+        .await_with_timeout()
         .await
+        .unwrap()
         .unwrap();
 
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2))
+        .await_with_timeout()
+        .await
+        .unwrap();
     coordinator.process_incoming_messages().unwrap();
 
-    app.reconnect(coordinator.info).await.unwrap();
+    app.reconnect(coordinator.info)
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
     // Check if channel is still open
     app.list_channels()
@@ -69,7 +95,9 @@ async fn reconnecting_during_dlc_channel_setup_leads_to_ln_channel_closure() {
 
         Ok(sub_channel.cloned())
     })
+    .await_with_timeout()
     .await
+    .unwrap()
     .unwrap();
 
     coordinator
@@ -78,7 +106,11 @@ async fn reconnecting_during_dlc_channel_setup_leads_to_ln_channel_closure() {
 
     // This reconnect leads to the channel being force-closed. This issue is tracked here:
     // https://github.com/get10101/10101/issues/352
-    app.reconnect(coordinator.info).await.unwrap();
+    app.reconnect(coordinator.info)
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
     // Channel is missing due to bug
     let channel = app

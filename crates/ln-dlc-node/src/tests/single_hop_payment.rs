@@ -1,3 +1,4 @@
+use crate::await_with_timeout::AwaitWithTimeout;
 use crate::node::Node;
 use crate::tests::init_tracing;
 use bitcoin::Amount;
@@ -9,14 +10,37 @@ async fn single_hop_payment() {
 
     // Arrange
 
-    let payer = Node::start_test_app("payer").await.unwrap();
-    let payee = Node::start_test_app("payee").await.unwrap();
+    let payer = Node::start_test_app("payer")
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
+    let payee = Node::start_test_app("payee")
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
-    payer.connect(payee.info).await.unwrap();
+    payer
+        .connect(payee.info)
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
-    payer.fund(Amount::from_btc(0.1).unwrap()).await.unwrap();
+    payer
+        .fund(Amount::from_btc(0.1).unwrap())
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
-    payer.open_channel(&payee, 30_000, 0).await.unwrap();
+    payer
+        .open_channel(&payee, 30_000, 0)
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
     let payer_balance_before = payer.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();
@@ -33,7 +57,9 @@ async fn single_hop_payment() {
 
     payee
         .wait_for_payment_claimed(invoice.payment_hash())
+        .await_with_timeout()
         .await
+        .unwrap()
         .unwrap();
 
     // Assert

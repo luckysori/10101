@@ -1,3 +1,4 @@
+use crate::await_with_timeout::AwaitWithTimeout;
 use crate::node::Node;
 use crate::tests;
 use crate::tests::bitcoind;
@@ -25,14 +26,24 @@ impl LndNode {
 
     /// Funds the lnd onchain wallet.
     pub async fn fund(&self, amount: bitcoin::Amount) -> Result<()> {
-        let response = self.get("lnd/v1/newaddress").await?;
-        let response: LndResponse = response.json().await.unwrap();
+        let response = self
+            .get("lnd/v1/newaddress")
+            .await_with_timeout()
+            .await
+            .unwrap()?;
+        let response: LndResponse = response.json().await_with_timeout().await.unwrap().unwrap();
 
-        bitcoind::fund(response.address, amount).await?;
-        bitcoind::mine(1).await?;
+        bitcoind::fund(response.address, amount)
+            .await_with_timeout()
+            .await
+            .unwrap()?;
+        bitcoind::mine(1).await_with_timeout().await.unwrap()?;
 
         // to wait for lnd to sync
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        tokio::time::sleep(Duration::from_secs(5))
+            .await_with_timeout()
+            .await
+            .unwrap();
 
         Ok(())
     }
@@ -54,9 +65,14 @@ impl LndNode {
                 target.info.pubkey
             ),
         )
-        .await?;
+        .await_with_timeout()
+        .await
+        .unwrap()?;
 
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        tokio::time::sleep(Duration::from_secs(5))
+            .await_with_timeout()
+            .await
+            .unwrap();
 
         tracing::info!("Opening channel to {} with {amount}", target.info);
         self.post(
@@ -67,9 +83,11 @@ impl LndNode {
                 amount.to_sat()
             ),
         )
-        .await?;
+        .await_with_timeout()
+        .await
+        .unwrap()?;
 
-        bitcoind::mine(1).await?;
+        bitcoind::mine(1).await_with_timeout().await.unwrap()?;
         target.sync().unwrap();
 
         tokio::time::timeout(Duration::from_secs(10), async {
@@ -88,10 +106,15 @@ impl LndNode {
                 target.sync().unwrap();
 
                 tracing::debug!("Waiting for channel to be usable");
-                tokio::time::sleep(Duration::from_millis(500)).await;
+                tokio::time::sleep(Duration::from_millis(500))
+                    .await_with_timeout()
+                    .await
+                    .unwrap();
             }
         })
+        .await_with_timeout()
         .await
+        .unwrap()
         .map_err(|e| anyhow!(e))?;
 
         // todo: fetch channel status from lnd api instead of timeout.
@@ -106,7 +129,9 @@ impl LndNode {
             "lnd/v1/channels/transactions",
             format!(r#"{{"payment_request": "{invoice}"}}"#),
         )
+        .await_with_timeout()
         .await
+        .unwrap()
     }
 
     async fn post(&self, path: &str, body: String) -> Result<Response> {
@@ -115,9 +140,11 @@ impl LndNode {
             .post(format!("{FAUCET_ORIGIN}/{path}"))
             .body(body)
             .send()
-            .await?;
+            .await_with_timeout()
+            .await
+            .unwrap()?;
         if !response.status().is_success() {
-            bail!(response.text().await?)
+            bail!(response.text().await_with_timeout().await.unwrap()?)
         }
 
         Ok(response)
@@ -125,9 +152,14 @@ impl LndNode {
 
     async fn get(&self, path: &str) -> Result<Response> {
         let client = reqwest::Client::new();
-        let response = client.get(format!("{FAUCET_ORIGIN}/{path}")).send().await?;
+        let response = client
+            .get(format!("{FAUCET_ORIGIN}/{path}"))
+            .send()
+            .await_with_timeout()
+            .await
+            .unwrap()?;
         if !response.status().is_success() {
-            bail!(response.text().await?)
+            bail!(response.text().await_with_timeout().await.unwrap()?)
         }
         Ok(response)
     }

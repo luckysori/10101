@@ -1,3 +1,4 @@
+use crate::await_with_timeout::AwaitWithTimeout;
 use crate::node::Node;
 use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::dlc::create::DlcChannelCreated;
@@ -20,7 +21,9 @@ async fn dlc_collaborative_settlement_test() {
     let coordinator_dlc_collateral = 25_000;
 
     dlc_collaborative_settlement(app_dlc_collateral, coordinator_dlc_collateral)
+        .await_with_timeout()
         .await
+        .unwrap()
         .unwrap();
 }
 
@@ -39,7 +42,10 @@ async fn dlc_collaborative_settlement(
         app,
         app_balance_channel_creation,
         channel_id,
-    } = create_dlc_channel(app_dlc_collateral, coordinator_dlc_collateral).await?;
+    } = create_dlc_channel(app_dlc_collateral, coordinator_dlc_collateral)
+        .await_with_timeout()
+        .await
+        .unwrap()?;
 
     // Act
 
@@ -52,7 +58,10 @@ async fn dlc_collaborative_settlement(
     app.propose_dlc_channel_collaborative_settlement(&channel_id, coordinator_settlement_amount)?;
 
     // Processs the app's offer to close the channel
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2))
+        .await_with_timeout()
+        .await
+        .unwrap();
     coordinator.process_incoming_messages()?;
 
     let sub_channel = wait_until(Duration::from_secs(30), || async {
@@ -69,21 +78,32 @@ async fn dlc_collaborative_settlement(
 
         Ok(sub_channel.cloned())
     })
-    .await?;
+    .await_with_timeout()
+    .await
+    .unwrap()?;
 
     coordinator.accept_dlc_channel_collaborative_settlement(&sub_channel.channel_id)?;
 
     // Process the coordinator's accept message _and_ send the confirm
     // message
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2))
+        .await_with_timeout()
+        .await
+        .unwrap();
     app.process_incoming_messages()?;
 
     // Process the confirm message
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2))
+        .await_with_timeout()
+        .await
+        .unwrap();
     coordinator.process_incoming_messages()?;
 
     // Process the close-finalize message
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2))
+        .await_with_timeout()
+        .await
+        .unwrap();
     app.process_incoming_messages()?;
 
     // Assert
@@ -141,7 +161,9 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
 
     let (app, coordinator) =
         dlc_collaborative_settlement(app_dlc_collateral, coordinator_dlc_collateral)
+            .await_with_timeout()
             .await
+            .unwrap()
             .unwrap();
 
     let channel_details = app.channel_manager.list_usable_channels();
@@ -161,11 +183,16 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
         dummy_contract_input(app_dlc_collateral, coordinator_dlc_collateral, oracle_pk);
 
     app.propose_dlc_channel(channel_details, &contract_input)
+        .await_with_timeout()
         .await
+        .unwrap()
         .unwrap();
 
     // Processs the app's offer to close the channel
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2))
+        .await_with_timeout()
+        .await
+        .unwrap();
     coordinator.process_incoming_messages().unwrap();
 
     let sub_channel = wait_until(Duration::from_secs(30), || async {
@@ -181,7 +208,9 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
 
         Ok(sub_channel.cloned())
     })
+    .await_with_timeout()
     .await
+    .unwrap()
     .unwrap();
 
     coordinator
@@ -190,11 +219,17 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
 
     // Process the coordinator's accept message _and_ send the confirm
     // message
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2))
+        .await_with_timeout()
+        .await
+        .unwrap();
     app.process_incoming_messages().unwrap();
 
     // Process the confirm message
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2))
+        .await_with_timeout()
+        .await
+        .unwrap();
     coordinator.process_incoming_messages().unwrap();
 
     // Assert

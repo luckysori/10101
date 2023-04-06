@@ -1,3 +1,4 @@
+use crate::await_with_timeout::AwaitWithTimeout;
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::node::Node;
 use crate::node::LIQUIDITY_ROUTING_FEE_MILLIONTHS;
@@ -15,14 +16,41 @@ async fn just_in_time_channel() {
 
     // Arrange
 
-    let payer = Node::start_test_app("payer").await.unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
-    let payee = Node::start_test_app("payee").await.unwrap();
+    let payer = Node::start_test_app("payer")
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator")
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
+    let payee = Node::start_test_app("payee")
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
-    payer.connect(coordinator.info).await.unwrap();
-    payee.connect(coordinator.info).await.unwrap();
+    payer
+        .connect(coordinator.info)
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
+    payee
+        .connect(coordinator.info)
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
-    coordinator.fund(Amount::from_sat(100_000)).await.unwrap();
+    coordinator
+        .fund(Amount::from_sat(100_000))
+        .await_with_timeout()
+        .await
+        .unwrap()
+        .unwrap();
 
     let payer_outbound_liquidity_sat = 25_000;
     let coordinator_outbound_liquidity_sat =
@@ -34,7 +62,9 @@ async fn just_in_time_channel() {
             coordinator_outbound_liquidity_sat,
             payer_outbound_liquidity_sat,
         )
+        .await_with_timeout()
         .await
+        .unwrap()
         .unwrap();
 
     // This comment should be removed once the implementation of
@@ -69,7 +99,9 @@ async fn just_in_time_channel() {
         invoice_amount,
         Some(JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT),
     )
+    .await_with_timeout()
     .await
+    .unwrap()
     .unwrap();
 }
 
@@ -124,7 +156,9 @@ pub(crate) async fn send_interceptable_payment(
 
     payee
         .wait_for_payment_claimed(invoice.payment_hash())
-        .await?;
+        .await_with_timeout()
+        .await
+        .unwrap()?;
 
     // Assert
 

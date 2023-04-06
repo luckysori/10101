@@ -1,3 +1,4 @@
+use crate::await_with_timeout::AwaitWithTimeout;
 use crate::node::Node;
 use anyhow::anyhow;
 use anyhow::Result;
@@ -10,7 +11,9 @@ pub async fn build() -> Result<P2PDOracleClient> {
         P2PDOracleClient::new("https://oracle.holzeis.me/") // TODO: this should come form the configuration.
             .expect("to be able to create the p2pd oracle")
     })
+.await_with_timeout()
     .await
+    .unwrap()
     .map_err(|e| anyhow!(e))
 }
 

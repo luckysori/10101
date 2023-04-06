@@ -1,3 +1,4 @@
+use crate::await_with_timeout::AwaitWithTimeout;
 use crate::node::Node;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
@@ -20,7 +21,9 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
     let coordinator_dlc_collateral = 25_000;
 
     create_dlc_channel(app_dlc_collateral, coordinator_dlc_collateral)
+        .await_with_timeout()
         .await
+        .unwrap()
         .unwrap();
 }
 
@@ -45,16 +48,31 @@ pub async fn create_dlc_channel(
 
     let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
 
-    let app = Node::start_test_app("app").await?;
-    let coordinator = Node::start_test_coordinator("coordinator").await?;
+    let app = Node::start_test_app("app")
+        .await_with_timeout()
+        .await
+        .unwrap()?;
+    let coordinator = Node::start_test_coordinator("coordinator")
+        .await_with_timeout()
+        .await
+        .unwrap()?;
 
-    app.connect(coordinator.info).await?;
+    app.connect(coordinator.info)
+        .await_with_timeout()
+        .await
+        .unwrap()?;
 
-    coordinator.fund(Amount::from_sat(fund_amount)).await?;
+    coordinator
+        .fund(Amount::from_sat(fund_amount))
+        .await_with_timeout()
+        .await
+        .unwrap()?;
 
     coordinator
         .open_channel(&app, coordinator_ln_balance, app_ln_balance)
-        .await?;
+        .await_with_timeout()
+        .await
+        .unwrap()?;
     let channel_details = app.channel_manager.list_usable_channels();
     let channel_details = channel_details
         .iter()
@@ -72,11 +90,16 @@ pub async fn create_dlc_channel(
         dummy_contract_input(app_dlc_collateral, coordinator_dlc_collateral, oracle_pk);
 
     app.propose_dlc_channel(channel_details, &contract_input)
-        .await?;
+        .await_with_timeout()
+        .await
+        .unwrap()?;
 
     // Processs the app's offer to close the channel
     // TODO: Spawn a task that does this work periodically
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2))
+        .await_with_timeout()
+        .await
+        .unwrap();
     coordinator.process_incoming_messages()?;
 
     let sub_channel = wait_until(Duration::from_secs(30), || async {
@@ -92,20 +115,31 @@ pub async fn create_dlc_channel(
 
         Ok(sub_channel.cloned())
     })
-    .await?;
+    .await_with_timeout()
+    .await
+    .unwrap()?;
 
     coordinator.accept_dlc_channel_offer(&sub_channel.channel_id)?;
 
     // Process the coordinator's accept message _and_ send the confirm message
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2))
+        .await_with_timeout()
+        .await
+        .unwrap();
     app.process_incoming_messages()?;
 
     // Process the confirm message _and_ send the finalize message
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2))
+        .await_with_timeout()
+        .await
+        .unwrap();
     coordinator.process_incoming_messages()?;
 
     // Process the finalize message
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2))
+        .await_with_timeout()
+        .await
+        .unwrap();
     app.process_incoming_messages()?;
 
     // Assert

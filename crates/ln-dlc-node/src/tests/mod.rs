@@ -1,3 +1,4 @@
+use crate::await_with_timeout::AwaitWithTimeout;
 use crate::ln::app_config;
 use crate::ln::coordinator_config;
 use crate::node::Node;
@@ -63,11 +64,17 @@ fn init_tracing() {
 
 impl Node {
     async fn start_test_app(name: &str) -> Result<Self> {
-        Self::start_test(name, app_config()).await
+        Self::start_test(name, app_config())
+            .await_with_timeout()
+            .await
+            .unwrap()
     }
 
     async fn start_test_coordinator(name: &str) -> Result<Self> {
-        Self::start_test(name, coordinator_config()).await
+        Self::start_test(name, coordinator_config())
+            .await_with_timeout()
+            .await
+            .unwrap()
     }
 
     async fn start_test(name: &str, user_config: UserConfig) -> Result<Self> {
@@ -95,7 +102,9 @@ impl Node {
             ephemeral_randomness,
             user_config,
         )
-        .await?;
+        .await_with_timeout()
+        .await
+        .unwrap()?;
 
         tracing::debug!(%name, info = %node.info, "Node started");
 
@@ -111,14 +120,20 @@ impl Node {
             .get_new_address()
             .map_err(|_| anyhow!("Failed to get new address"))?;
 
-        fund_and_mine(address, amount).await?;
+        fund_and_mine(address, amount)
+            .await_with_timeout()
+            .await
+            .unwrap()?;
 
         while self.get_confirmed_balance()? < expected_balance {
             let interval = Duration::from_millis(200);
 
             self.sync().unwrap();
 
-            tokio::time::sleep(interval).await;
+            tokio::time::sleep(interval)
+                .await_with_timeout()
+                .await
+                .unwrap();
             tracing::debug!(
                 ?interval,
                 "Checking if wallet has been funded after interval"
@@ -151,7 +166,10 @@ impl Node {
         if !peer.user_config.manually_accept_inbound_channels {
             let required_confirmations = peer.user_config.channel_handshake_config.minimum_depth;
 
-            bitcoind::mine(required_confirmations as u16).await?;
+            bitcoind::mine(required_confirmations as u16)
+                .await_with_timeout()
+                .await
+                .unwrap()?;
         }
 
         let channel_details = tokio::time::timeout(Duration::from_secs(30), async {
@@ -179,10 +197,15 @@ impl Node {
                     temp_channel_id = %hex::encode(temp_channel_id),
                     "Waiting for channel to be usable"
                 );
-                tokio::time::sleep(Duration::from_millis(500)).await;
+                tokio::time::sleep(Duration::from_millis(500))
+                    .await_with_timeout()
+                    .await
+                    .unwrap();
             }
         })
-        .await?;
+        .await_with_timeout()
+        .await
+        .unwrap()?;
 
         Ok(channel_details)
     }
@@ -193,15 +216,21 @@ impl Node {
 
     pub async fn reconnect(&self, peer: NodeInfo) -> Result<()> {
         self.disconnect(peer);
-        tokio::time::sleep(Duration::from_secs(1)).await;
-        self.connect(peer).await?;
+        tokio::time::sleep(Duration::from_secs(1))
+            .await_with_timeout()
+            .await
+            .unwrap();
+        self.connect(peer).await_with_timeout().await.unwrap()?;
         Ok(())
     }
 }
 
 async fn fund_and_mine(address: Address, amount: Amount) -> Result<()> {
-    bitcoind::fund(address.to_string(), amount).await?;
-    bitcoind::mine(1).await?;
+    bitcoind::fund(address.to_string(), amount)
+        .await_with_timeout()
+        .await
+        .unwrap()?;
+    bitcoind::mine(1).await_with_timeout().await.unwrap()?;
     Ok(())
 }
 
